@@ -8,3 +8,4 @@ CMakeLists.txt.user
 /cmake-build-*/
 .idea/
 build-release/
+.dash_build_ok
