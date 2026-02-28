@@ -132,6 +132,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}
         ${Qt5Network_INCLUDE_DIRS}
         ${Boost_INCLUDE_DIRS}
         ${OPENSSL_INCLUDE_DIR}
+        ${ABSL_INCLUDE_DIRS}
         ${RTAUDIO_INCLUDE_DIRS}
         ${TAGLIB_INCLUDE_DIRS}
         ${BLKID_INCLUDE_DIRS}
@@ -150,6 +151,34 @@ set(autoapp_sources_directory ${sources_directory}/autoapp)
 set(autoapp_include_directory ${include_directory}/f1x/openauto/autoapp)
 
 file(GLOB_RECURSE autoapp_source_files ${autoapp_sources_directory}/*.ui ${autoapp_sources_directory}/*.cpp ${autoapp_include_directory}/*.hpp ${autoapp_include_directory}/*.h ${common_include_directory}/*.hpp ${resources_directory}/*.qrc)
+
+file(GLOB_RECURSE openauto_library_source_files
+        ${autoapp_sources_directory}/*.cpp
+        ${autoapp_include_directory}/*.hpp
+        ${autoapp_include_directory}/*.h
+        ${common_include_directory}/*.hpp)
+list(REMOVE_ITEM openauto_library_source_files "${autoapp_sources_directory}/autoapp.cpp")
+
+add_library(openauto SHARED ${openauto_library_source_files})
+target_include_directories(openauto PUBLIC ${AAP_PROTOBUF_INCLUDE_DIR} ${AASDK_INCLUDE_DIR} ${include_directory})
+target_link_libraries(openauto PUBLIC
+        libusb
+        ${Boost_LIBRARIES}
+        ${Qt5DBus_LIBRARIES}
+        ${Qt5Multimedia_LIBRARIES}
+        ${Qt5MultimediaWidgets_LIBRARIES}
+        ${Qt5Bluetooth_LIBRARIES}
+        ${Qt5Network_LIBRARIES}
+        ${BCM_HOST_LIBRARIES}
+        ${ILCLIENT_LIBRARIES}
+        ${WINSOCK2_LIBRARIES}
+        ${RTAUDIO_LIBRARIES}
+        ${TAGLIB_LIBRARIES}
+        ${BLKID_LIBRARIES}
+        ${GPS_LIBRARIES}
+        ${PROTOBUF_LIBRARIES}
+        ${AAP_PROTOBUF_LIB_DIR}
+        ${AASDK_LIB_DIR})
 
 add_executable(autoapp ${autoapp_source_files})
 
@@ -218,9 +247,12 @@ target_link_libraries(btservice PUBLIC
 
 set_target_properties(autoapp
     PROPERTIES VERSION ${PROGRAM_VERSION_STRING} SOVERSION ${OPENAUTO_BUILD_MAJOR_RELEASE})
+set_target_properties(openauto
+    PROPERTIES VERSION ${PROGRAM_VERSION_STRING} SOVERSION ${OPENAUTO_BUILD_MAJOR_RELEASE})
 
 # Install rules
-install(TARGETS autoapp btservice
+install(TARGETS openauto autoapp btservice
+    LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
 )
 

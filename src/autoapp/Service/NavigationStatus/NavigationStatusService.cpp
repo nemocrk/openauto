@@ -17,6 +17,7 @@
 */
 
 #include <f1x/openauto/Common/Log.hpp>
+#include <f1x/openauto/autoapp/Service/Callbacks.hpp>
 #include <f1x/openauto/autoapp/Service/NavigationStatus/NavigationStatusService.hpp>
 #include <fstream>
 #include <QString>
@@ -87,17 +88,29 @@ namespace f1x::openauto::autoapp::service::navigationstatus {
 
   void NavigationStatusService::onStatusUpdate(
       const aap_protobuf::service::navigationstatus::message::NavigationStatus &navStatus) {
+    auto callbacks = service::getEventCallbacks();
+    if (callbacks.onNavigationStatus) {
+      callbacks.onNavigationStatus(navStatus);
+    }
     channel_->receive(this->shared_from_this());
   }
 
 
   void NavigationStatusService::onTurnEvent(
       const aap_protobuf::service::navigationstatus::message::NavigationNextTurnEvent &turnEvent) {
+    auto callbacks = service::getEventCallbacks();
+    if (callbacks.onNavigationTurn) {
+      callbacks.onNavigationTurn(turnEvent);
+    }
     channel_->receive(this->shared_from_this());
   }
 
   void NavigationStatusService::onDistanceEvent(
       const aap_protobuf::service::navigationstatus::message::NavigationNextTurnDistanceEvent &distanceEvent) {
+    auto callbacks = service::getEventCallbacks();
+    if (callbacks.onNavigationDistance) {
+      callbacks.onNavigationDistance(distanceEvent);
+    }
     channel_->receive(this->shared_from_this());
   }
 
@@ -106,6 +119,5 @@ namespace f1x::openauto::autoapp::service::navigationstatus {
     OPENAUTO_LOG(error) << "[NavigationStatusService] onChannelError(): " << e.what();
   }
 }
-
 
 

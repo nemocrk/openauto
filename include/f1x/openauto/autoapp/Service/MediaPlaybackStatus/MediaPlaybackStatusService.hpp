@@ -45,6 +45,8 @@ namespace f1x {
             void onChannelOpenRequest(const aap_protobuf::service::control::message::ChannelOpenRequest &request) override;
 
             void onChannelError(const aasdk::error::Error &e) override;
+            void onMetadataUpdate(const aap_protobuf::service::mediaplayback::message::MediaPlaybackMetadata &metadata) override;
+            void onPlaybackUpdate(const aap_protobuf::service::mediaplayback::message::MediaPlaybackStatus &playback) override;
 
 
           private:

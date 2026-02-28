@@ -37,6 +37,13 @@
 #include <f1x/openauto/autoapp/Service/Sensor/SensorService.hpp>
 #include <f1x/openauto/autoapp/Service/Bluetooth/BluetoothService.hpp>
 #include <f1x/openauto/autoapp/Service/InputSource/InputSourceService.hpp>
+#include <f1x/openauto/autoapp/Service/GenericNotification/GenericNotificationService.hpp>
+#include <f1x/openauto/autoapp/Service/MediaBrowser/MediaBrowserService.hpp>
+#include <f1x/openauto/autoapp/Service/MediaPlaybackStatus/MediaPlaybackStatusService.hpp>
+#include <f1x/openauto/autoapp/Service/NavigationStatus/NavigationStatusService.hpp>
+#include <f1x/openauto/autoapp/Service/PhoneStatus/PhoneStatusService.hpp>
+#include <f1x/openauto/autoapp/Service/Radio/RadioService.hpp>
+#include <f1x/openauto/autoapp/Service/VendorExtension/VendorExtensionService.hpp>
 #include <f1x/openauto/autoapp/Service/WifiProjection/WifiProjectionService.hpp>
 #include <f1x/openauto/autoapp/Projection/QtVideoOutput.hpp>
 #include <f1x/openauto/autoapp/Projection/OMXVideoOutput.hpp>
@@ -61,8 +68,15 @@ namespace f1x::openauto::autoapp::service {
 
     this->createMediaSinkServices(serviceList, messenger);
     this->createMediaSourceServices(serviceList, messenger);
+    serviceList.emplace_back(this->createGenericNotificationService(messenger));
+    serviceList.emplace_back(this->createMediaBrowserService(messenger));
+    serviceList.emplace_back(this->createMediaPlaybackStatusService(messenger));
+    serviceList.emplace_back(this->createNavigationStatusService(messenger));
+    serviceList.emplace_back(this->createPhoneStatusService(messenger));
+    serviceList.emplace_back(this->createRadioService(messenger));
     serviceList.emplace_back(this->createSensorService(messenger));
     serviceList.emplace_back(this->createInputService(messenger));
+    serviceList.emplace_back(this->createVendorExtensionService(messenger));
     if (configuration_->getWirelessProjectionEnabled())
     {
         // TODO: What is WiFi Projection Service?
@@ -71,7 +85,7 @@ namespace f1x::openauto::autoapp::service {
          * If WifiProjection is a legitimate service, then it seems clear it is not what we think it actually is.
          */
         serviceList.emplace_back(this->createBluetoothService(messenger));
-        // serviceList.emplace_back(this->createWifiProjectionService(messenger));
+        serviceList.emplace_back(this->createWifiProjectionService(messenger));
     }
 
     return serviceList;
@@ -207,7 +221,41 @@ namespace f1x::openauto::autoapp::service {
     return std::make_shared<wifiprojection::WifiProjectionService>(ioService_, messenger, configuration_);
   }
 
-}
+  IService::Pointer ServiceFactory::createGenericNotificationService(aasdk::messenger::IMessenger::Pointer messenger) {
+    OPENAUTO_LOG(info) << "[ServiceFactory] createGenericNotificationService()";
+    return std::make_shared<genericnotification::GenericNotificationService>(ioService_, messenger);
+  }
 
+  IService::Pointer ServiceFactory::createMediaBrowserService(aasdk::messenger::IMessenger::Pointer messenger) {
+    OPENAUTO_LOG(info) << "[ServiceFactory] createMediaBrowserService()";
+    return std::make_shared<mediabrowser::MediaBrowserService>(ioService_, messenger);
+  }
+
+  IService::Pointer ServiceFactory::createMediaPlaybackStatusService(aasdk::messenger::IMessenger::Pointer messenger) {
+    OPENAUTO_LOG(info) << "[ServiceFactory] createMediaPlaybackStatusService()";
+    return std::make_shared<mediaplaybackstatus::MediaPlaybackStatusService>(ioService_, messenger);
+  }
+
+  IService::Pointer ServiceFactory::createNavigationStatusService(aasdk::messenger::IMessenger::Pointer messenger) {
+    OPENAUTO_LOG(info) << "[ServiceFactory] createNavigationStatusService()";
+    return std::make_shared<navigationstatus::NavigationStatusService>(ioService_, messenger);
+  }
+
+  IService::Pointer ServiceFactory::createPhoneStatusService(aasdk::messenger::IMessenger::Pointer messenger) {
+    OPENAUTO_LOG(info) << "[ServiceFactory] createPhoneStatusService()";
+    return std::make_shared<phonestatus::PhoneStatusService>(ioService_, messenger);
+  }
+
+  IService::Pointer ServiceFactory::createRadioService(aasdk::messenger::IMessenger::Pointer messenger) {
+    OPENAUTO_LOG(info) << "[ServiceFactory] createRadioService()";
+    return std::make_shared<radio::RadioService>(ioService_, messenger);
+  }
+
+  IService::Pointer ServiceFactory::createVendorExtensionService(aasdk::messenger::IMessenger::Pointer messenger) {
+    OPENAUTO_LOG(info) << "[ServiceFactory] createVendorExtensionService()";
+    return std::make_shared<vendorextension::VendorExtensionService>(ioService_, messenger);
+  }
+
+}
 
 

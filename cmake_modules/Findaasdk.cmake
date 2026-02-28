@@ -1,12 +1,31 @@
+set(_AASDK_HINT_PATHS "")
+if(DEFINED AASDK_BUILD_DIR AND NOT "${AASDK_BUILD_DIR}" STREQUAL "")
+    list(APPEND _AASDK_HINT_PATHS "${AASDK_BUILD_DIR}" "${AASDK_BUILD_DIR}/lib")
+endif()
+if(DEFINED AASDK_ROOT AND NOT "${AASDK_ROOT}" STREQUAL "")
+    list(APPEND _AASDK_HINT_PATHS "${AASDK_ROOT}" "${AASDK_ROOT}/include" "${AASDK_ROOT}/lib")
+endif()
+
 if (AASDK_LIB_DIRS AND AASDK_INCLUDE_DIRS)
     # in cache already
     message(STATUS "aasdk cached")
+    # Keep singular vars in sync for legacy consumers in CMakeLists.txt.
+    # AASDK_INCLUDE_DIR must point to the directory that contains Transport/, USB/, ...
+    if(EXISTS "${AASDK_INCLUDE_DIRS}/Transport/ITransport.hpp")
+        set(AASDK_INCLUDE_DIR ${AASDK_INCLUDE_DIRS})
+    elseif(EXISTS "${AASDK_INCLUDE_DIRS}/aasdk/Transport/ITransport.hpp")
+        set(AASDK_INCLUDE_DIR "${AASDK_INCLUDE_DIRS}/aasdk")
+    else()
+        set(AASDK_INCLUDE_DIR ${AASDK_INCLUDE_DIRS})
+    endif()
+    set(AASDK_LIB_DIR ${AASDK_LIB_DIRS})
     set(AASDK_FOUND TRUE)
 else (AASDK_LIB_DIRS AND AASDK_INCLUDE_DIRS)
     find_path(AASDK_INCLUDE_DIR
             NAMES
             Version.hpp
             PATHS
+            ${_AASDK_HINT_PATHS}
             /usr/include
             /usr/local/include
             /opt/local/include
@@ -19,6 +38,7 @@ else (AASDK_LIB_DIRS AND AASDK_INCLUDE_DIRS)
             NAMES
             aasdk libaasdk
             PATHS
+            ${_AASDK_HINT_PATHS}
             /usr/lib
             /usr/local/lib
             /opt/local/lib

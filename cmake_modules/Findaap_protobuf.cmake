@@ -1,12 +1,32 @@
+set(_AAP_PROTOBUF_HINT_PATHS "")
+if(DEFINED AASDK_BUILD_DIR AND NOT "${AASDK_BUILD_DIR}" STREQUAL "")
+    list(APPEND _AAP_PROTOBUF_HINT_PATHS
+        "${AASDK_BUILD_DIR}"
+        "${AASDK_BUILD_DIR}/protobuf"
+        "${AASDK_BUILD_DIR}/lib")
+endif()
+if(DEFINED AASDK_ROOT AND NOT "${AASDK_ROOT}" STREQUAL "")
+    list(APPEND _AAP_PROTOBUF_HINT_PATHS
+        "${AASDK_ROOT}"
+        "${AASDK_ROOT}/protobuf"
+        "${AASDK_ROOT}/build-release"
+        "${AASDK_ROOT}/build-release/protobuf"
+        "${AASDK_ROOT}/build-release/lib")
+endif()
+
 if (AAP_PROTOBUF_LIB_DIRS AND AAP_PROTOBUF_INCLUDE_DIRS)
     # in cache already
     message(STATUS "aap_protobuf is cached")
+    # Keep singular vars in sync for legacy consumers in CMakeLists.txt
+    set(AAP_PROTOBUF_INCLUDE_DIR ${AAP_PROTOBUF_INCLUDE_DIRS})
+    set(AAP_PROTOBUF_LIB_DIR ${AAP_PROTOBUF_LIB_DIRS})
     set(AAP_PROTOBUF_FOUND TRUE)
 else (AAP_PROTOBUF_LIB_DIRS AND AAP_PROTOBUF_INCLUDE_DIRS)
     find_path(AAP_PROTOBUF_INCLUDE_DIR
             NAMES
             channel/control/GalConstants.pb.h
             PATHS
+            ${_AAP_PROTOBUF_HINT_PATHS}
             /usr/include
             /usr/local/include
             /opt/local/include
@@ -19,6 +39,7 @@ else (AAP_PROTOBUF_LIB_DIRS AND AAP_PROTOBUF_INCLUDE_DIRS)
             NAMES
             aap_protobuf libaap_protobuf
             PATHS
+            ${_AAP_PROTOBUF_HINT_PATHS}
             /usr/lib
             /usr/local/lib
             /opt/local/lib

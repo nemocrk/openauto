@@ -21,12 +21,34 @@ set -e
 # Script to build OpenAuto consistently across Docker and local environments
 # Usage: ./build.sh [release|debug] [--clean] [--package] [--output-dir DIR]
 
+resolve_submodule_url() {
+    local submodule_path="$1"
+    local project_root
+    project_root="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+    local gitmodules_file="${project_root}/.gitmodules"
+
+    if [ -f "${gitmodules_file}" ]; then
+        local submodule_name
+        submodule_name="$(git config -f "${gitmodules_file}" --get-regexp '^submodule\..*\.path$' \
+            | awk -v p="${submodule_path}" '$2==p {print $1}' \
+            | sed -e 's/^submodule\.//' -e 's/\.path$//' \
+            | head -n1)"
+        if [ -n "${submodule_name}" ]; then
+            git config -f "${gitmodules_file}" --get "submodule.${submodule_name}.url"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
 # Default values
 NOPI_FLAG="-DNOPI=ON"
 CLEAN_BUILD=false
 PACKAGE=false
 OUTPUT_DIR="/output"
 WITH_AASDK=false
+INSTALL_DEPS=false
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="${SCRIPT_DIR}"
 
@@ -36,6 +58,36 @@ if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
     BUILD_TYPE="release"
 else
     BUILD_TYPE="debug"
+fi
+
+if [ "$INSTALL_DEPS" = true ]; then
+    sudo apt update
+    sudo apt install -y \
+        build-essential \
+        cmake \
+        pkg-config \
+        git \
+        lsb-release \
+        curl \
+        gnupg \
+        ca-certificates \
+        libboost-system-dev \
+        libboost-log-dev \
+        libprotobuf-dev \
+        protobuf-compiler \
+        libusb-1.0-0-dev \
+        libssl-dev \
+        libblkid-dev \
+        libgps-dev \
+        libtag1-dev \
+        librtaudio-dev \
+        qtbase5-dev \
+        qtmultimedia5-dev \
+        qttools5-dev \
+        qttools5-dev-tools \
+        qtconnectivity5-dev \
+        file \
+        dpkg-dev
 fi
 
 # Parse arguments
@@ -65,6 +117,10 @@ while [[ $# -gt 0 ]]; do
             WITH_AASDK=true
             shift
             ;;
+        --install-deps)
+            INSTALL_DEPS=true
+            shift
+            ;;
         --help|-h)
             echo "Usage: $0 [release|debug] [OPTIONS]"
             echo ""
@@ -77,6 +133,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --package      Create DEB packages after building"
             echo "  --output-dir   Directory to copy packages (default: /output)"
             echo "  --with-aasdk   Clone AASDK newdev branch and build/install it"
+            echo "  --install-deps Install apt dependencies before build"
             echo "  --help         Show this help message"
             echo ""
             echo "Examples:"
@@ -96,18 +153,40 @@ done
 # Handle AASDK cloning and building if requested
 if [ "$WITH_AASDK" = true ]; then
     echo ""
-    echo "Cloning AASDK newdev branch..."
-    if [ -d "aasdk-build" ]; then
-        rm -rf "aasdk-build"
+    PARENT_DIR="$(dirname "${SOURCE_DIR}")"
+    LOCAL_AASDK_DIR="${PARENT_DIR}/aasdk"
+
+    if [ -d "${LOCAL_AASDK_DIR}" ]; then
+        echo "Using existing local AASDK at: ${LOCAL_AASDK_DIR}"
+    else
+        AASDK_CLONE_URL="$(resolve_submodule_url "third_party/aasdk" || true)"
+        if [ -z "${AASDK_CLONE_URL}" ]; then
+            AASDK_CLONE_URL="https://github.com/nemocrk/aasdk.git"
+        fi
+        echo "Local AASDK not found. Cloning from ${AASDK_CLONE_URL}..."
+        git clone "${AASDK_CLONE_URL}" "${LOCAL_AASDK_DIR}"
     fi
-    git clone --branch newdev https://github.com/opencardev/aasdk.git aasdk-build
-    cd aasdk-build
+
+    cd "${LOCAL_AASDK_DIR}"
     echo "Building and installing AASDK..."
     chmod +x build.sh
-    export TARGET_ARCH="$TARGET_ARCH"
+    if [ -n "$TARGET_ARCH" ]; then
+        export TARGET_ARCH="$TARGET_ARCH"
+    fi
     ./build.sh $BUILD_TYPE install
     cd "${SOURCE_DIR}"
     echo "AASDK build and install completed."
+fi
+
+# If a local sibling AASDK build exists, prefer it without requiring system install.
+PARENT_DIR="$(dirname "${SOURCE_DIR}")"
+LOCAL_AASDK_DIR="${PARENT_DIR}/aasdk"
+LOCAL_AASDK_BUILD_DIR="${LOCAL_AASDK_DIR}/build-release"
+if [ -d "${LOCAL_AASDK_BUILD_DIR}" ] && [ -f "${LOCAL_AASDK_BUILD_DIR}/lib/libaasdk.so" ] && [ -f "${LOCAL_AASDK_BUILD_DIR}/lib/libaap_protobuf.so" ]; then
+    echo "Using local AASDK build artifacts from: ${LOCAL_AASDK_BUILD_DIR}"
+    USE_LOCAL_AASDK=true
+else
+    USE_LOCAL_AASDK=false
 fi
 
 # Determine build directory and CMake build type
@@ -227,6 +306,24 @@ if [ -n "$DISTRO_DEB_RELEASE" ]; then
 fi
 
 CMAKE_ARGS+=(-DCPACK_PROJECT_CONFIG_FILE="${SOURCE_DIR}/cmake_modules/CPackProjectConfig.cmake")
+
+if [ "$USE_LOCAL_AASDK" = true ]; then
+    CMAKE_ARGS+=(-DAASDK_ROOT="${LOCAL_AASDK_DIR}")
+    CMAKE_ARGS+=(-DAASDK_BUILD_DIR="${LOCAL_AASDK_BUILD_DIR}")
+    CMAKE_ARGS+=(-DAASDK_INCLUDE_DIR="${LOCAL_AASDK_DIR}/include/aasdk")
+    CMAKE_ARGS+=(-DAASDK_INCLUDE_DIRS="${LOCAL_AASDK_DIR}/include")
+    CMAKE_ARGS+=(-DAASDK_LIB_DIR="${LOCAL_AASDK_BUILD_DIR}/lib/libaasdk.so")
+    CMAKE_ARGS+=(-DAASDK_LIB_DIRS="${LOCAL_AASDK_BUILD_DIR}/lib/libaasdk.so")
+    CMAKE_ARGS+=(-DAAP_PROTOBUF_INCLUDE_DIR="${LOCAL_AASDK_BUILD_DIR}/protobuf/aap_protobuf")
+    CMAKE_ARGS+=(-DAAP_PROTOBUF_INCLUDE_DIRS="${LOCAL_AASDK_BUILD_DIR}/protobuf")
+    CMAKE_ARGS+=(-DAAP_PROTOBUF_LIB_DIR="${LOCAL_AASDK_BUILD_DIR}/lib/libaap_protobuf.so")
+    CMAKE_ARGS+=(-DAAP_PROTOBUF_LIB_DIRS="${LOCAL_AASDK_BUILD_DIR}/lib/libaap_protobuf.so")
+    CMAKE_ARGS+=(-DProtobuf_INCLUDE_DIR="${LOCAL_AASDK_BUILD_DIR}/_deps/protobuf-src/src")
+    CMAKE_ARGS+=(-DProtobuf_LIBRARY="${LOCAL_AASDK_BUILD_DIR}/lib/libprotobuf.a")
+    CMAKE_ARGS+=(-DPROTOBUF_LIBRARIES="${LOCAL_AASDK_BUILD_DIR}/lib/libprotobuf.a")
+    CMAKE_ARGS+=(-DPROTOBUF_PROTOC_EXECUTABLE="${LOCAL_AASDK_BUILD_DIR}/_deps/protobuf-build/protoc")
+    CMAKE_ARGS+=(-DABSL_INCLUDE_DIRS="${LOCAL_AASDK_BUILD_DIR}/_deps/abseil-src")
+fi
 
 # Run CMake configuration
 env DISTRO_DEB_RELEASE="${DISTRO_DEB_RELEASE}" cmake "${CMAKE_ARGS[@]}"

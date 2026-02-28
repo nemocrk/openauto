@@ -17,6 +17,7 @@
 */
 
 #include <f1x/openauto/Common/Log.hpp>
+#include <f1x/openauto/autoapp/Service/Callbacks.hpp>
 #include <f1x/openauto/autoapp/Service/MediaPlaybackStatus/MediaPlaybackStatusService.hpp>
 #include <fstream>
 #include <QString>
@@ -89,6 +90,26 @@ namespace f1x {
 
           void MediaPlaybackStatusService::onChannelError(const aasdk::error::Error &e) {
             OPENAUTO_LOG(error) << "[MediaPlaybackStatusService] onChannelError(): " << e.what();
+          }
+
+          void MediaPlaybackStatusService::onMetadataUpdate(
+              const aap_protobuf::service::mediaplayback::message::MediaPlaybackMetadata &metadata) {
+            OPENAUTO_LOG(debug) << "[MediaPlaybackStatusService] onMetadataUpdate()";
+            auto callbacks = service::getEventCallbacks();
+            if (callbacks.onMediaMetadata) {
+              callbacks.onMediaMetadata(metadata);
+            }
+            channel_->receive(this->shared_from_this());
+          }
+
+          void MediaPlaybackStatusService::onPlaybackUpdate(
+              const aap_protobuf::service::mediaplayback::message::MediaPlaybackStatus &playback) {
+            OPENAUTO_LOG(debug) << "[MediaPlaybackStatusService] onPlaybackUpdate()";
+            auto callbacks = service::getEventCallbacks();
+            if (callbacks.onMediaPlayback) {
+              callbacks.onMediaPlayback(playback);
+            }
+            channel_->receive(this->shared_from_this());
           }
         }
       }
