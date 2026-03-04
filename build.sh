@@ -46,7 +46,7 @@ resolve_submodule_url() {
 NOPI_FLAG="-DNOPI=ON"
 CLEAN_BUILD=false
 PACKAGE=false
-OUTPUT_DIR="/output"
+OUTPUT_DIR="./output"
 WITH_AASDK=false
 INSTALL_DEPS=false
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
